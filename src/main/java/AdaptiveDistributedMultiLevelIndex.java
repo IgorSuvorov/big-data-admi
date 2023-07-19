@@ -6,6 +6,9 @@ import java.util.*;
 public class AdaptiveDistributedMultiLevelIndex {
     Map<Node, Summary> globalIndex = new HashMap<>();
     Map<Node, Map<Partition, Integer>> localIndexes = new HashMap<>();
+    int totalNodes = 0;
+    int queriedNodes = 0;
+    int communicationCost = 0;
 
     public Summary summarize(List<Partition> nodeData) {
         int min = Integer.MAX_VALUE;
@@ -38,6 +41,8 @@ public class AdaptiveDistributedMultiLevelIndex {
 
     public List<Node> queryRouting(Query query) {
         List<Node> relevantNodes = new ArrayList<>();
+        totalNodes = globalIndex.size();
+        queriedNodes = relevantNodes.size();
         for (Map.Entry<Node, Summary> entry : globalIndex.entrySet()) {
             Node node = entry.getKey();
             Summary summary = entry.getValue();
@@ -46,6 +51,10 @@ public class AdaptiveDistributedMultiLevelIndex {
             }
         }
         return relevantNodes;
+    }
+
+    public float getPruningPower() {
+        return (totalNodes - queriedNodes) / (float) totalNodes;
     }
 
     public List<Node> loadBalancing(Query query, List<Node> relevantNodes) {
@@ -60,6 +69,7 @@ public class AdaptiveDistributedMultiLevelIndex {
         List<Node> relevantNodes = queryRouting(query);
         List<Node> balancedNodes = loadBalancing(query, relevantNodes);
         List<Response> responses = new ArrayList<>();
+        communicationCost += balancedNodes.size();
         for (Node node : balancedNodes) {
             responses.add(sendQuery(node, query));
         }
@@ -112,6 +122,16 @@ public class AdaptiveDistributedMultiLevelIndex {
 
     public boolean metricsIndicateChange(Metrics metrics) {
         return metrics.queryLoad > 100 || metrics.systemLoad > 100;
+    }
+
+    public int getCommunicationCost() {
+        return communicationCost;
+    }
+
+    public void resetMetrics() {
+        totalNodes = 0;
+        queriedNodes = 0;
+        communicationCost = 0;
     }
 
 }
